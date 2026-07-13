@@ -67,7 +67,7 @@ N_SEEDS            = 10
 K_STRUCT_NEIGHBORS = 50    # structural peer set for displacement scoring
 K_BASELINE         = 10    # tight local peer set for delta_node energy comparison
 K_GRAPH            = 300   # kNN graph size for MDE
-BETA               = 35    # repulsion strength; pushes high-delta_node nodes outward
+BETA               = 20    # repulsion strength; pushes high-delta_node nodes outward
 EMBEDDING_DIM      = 4
 N_DISSIMILAR_MULT  = 4     # dissimilar edges = N_DISSIMILAR_MULT x similar edges
 NEG_WEIGHT         = -2.0  # weight on dissimilar edges in PushAndPull
