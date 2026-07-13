@@ -20,7 +20,7 @@ sharing restrictions. To regenerate it from your own data, supply the path:
     python contamination_sweep.py --data path/to/data_extended.pkl
 
 Your dataset must contain: meter_kwh, num_total_cells, total_non_ran_equipment,
-has_shared_ran, ran_vendor_type, mast_type, ps_traffic_mb.
+has_shared_ran, ran_vendor_type (Vendor A or Vendor B), mast_type, ps_traffic_mb.
 
     python contamination_sweep.py --data path/to/data.pkl --generate-only
 
@@ -102,8 +102,6 @@ _COOLING_RANGE = {
     'Rooftop': (80, 200), 'Pole': (100, 250), 'Other': (100, 200),
 }
 
-_VENDOR_DISPLAY = {'HUA': 'Vendor B', 'NOK': 'Vendor A'}
-
 _CONFIG_COLS = ['num_total_cells', 'total_non_ran_equipment',
                 'has_shared_ran', 'ran_vendor_type', 'mast_group']
 
@@ -126,9 +124,9 @@ def _fit_physics_model(df):
             'beta_non_ran': _m.coef_[1],
         })
     physics_df = pd.DataFrame(models).round(2)
-    # HUA-shared group has too few samples for reliable regression;
+    # Vendor B shared group has too few samples for reliable regression;
     # coefficients are overridden from domain knowledge.
-    _mask = (physics_df['has_shared_ran'] == 1) & (physics_df['ran_vendor_type'] == 'HUA')
+    _mask = (physics_df['has_shared_ran'] == 1) & (physics_df['ran_vendor_type'] == 'Vendor B')
     physics_df.loc[_mask, 'base_load']    = 480.0
     physics_df.loc[_mask, 'beta_non_ran'] = 220.0
     return physics_df
@@ -155,7 +153,7 @@ def generate_synthetic_base(df_real):
     pools, computes physics-model expected energy, and applies lognormal
     multiplicative noise. Returns a DataFrame with no anomaly labels.
 
-    Vendor names are anonymised: HUA -> Vendor B, NOK -> Vendor A.
+    Expects ran_vendor_type values 'Vendor A' and 'Vendor B'.
     """
     physics_df = _fit_physics_model(df_real)
 
@@ -195,9 +193,6 @@ def generate_synthetic_base(df_real):
     _log_eps   = np.random.normal(0, _sigma_log)
     df_base['noise_std']          = _sigma_log * df_base['kwh_expected'].values
     df_base['kwh_expected_noise'] = df_base['kwh_expected'].values * np.exp(_log_eps)
-
-    df_base['ran_vendor_type'] = df_base['ran_vendor_type'].map(
-        lambda v: _VENDOR_DISPLAY.get(v, v))
 
     return df_base
 

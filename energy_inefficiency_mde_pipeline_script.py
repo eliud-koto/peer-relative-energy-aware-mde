@@ -16,7 +16,7 @@ sharing restrictions. To regenerate it from your own data:
     python energy_inefficiency_mde_pipeline_script.py --data path/to/data_extended.pkl
 
 Your dataset must contain: meter_kwh, num_total_cells, total_non_ran_equipment,
-has_shared_ran, ran_vendor_type, mast_type, ps_traffic_mb.
+has_shared_ran, ran_vendor_type (Vendor A or Vendor B), mast_type, ps_traffic_mb.
 
 Optional flags:
     --eda       Also produce EDA diagnostic figures (S1-S4) in ./data/
@@ -84,7 +84,6 @@ _COOLING_RANGE = {
     'Rooftop': (80, 200), 'Pole': (100, 250), 'Other': (100, 200),
 }
 
-_VENDOR_DISPLAY = {'HUA': 'Vendor B', 'NOK': 'Vendor A'}
 _CONFIG_COLS    = ['num_total_cells', 'total_non_ran_equipment',
                    'has_shared_ran', 'ran_vendor_type', 'mast_group']
 
@@ -107,9 +106,9 @@ def _fit_physics_model(df):
             'beta_non_ran': _m.coef_[1],
         })
     physics_df = pd.DataFrame(models).round(2)
-    # HUA-shared group has too few samples for reliable regression;
+    # Vendor B shared group has too few samples for reliable regression;
     # coefficients are overridden from domain knowledge.
-    _mask = (physics_df['has_shared_ran'] == 1) & (physics_df['ran_vendor_type'] == 'HUA')
+    _mask = (physics_df['has_shared_ran'] == 1) & (physics_df['ran_vendor_type'] == 'Vendor B')
     physics_df.loc[_mask, 'base_load']    = 480.0
     physics_df.loc[_mask, 'beta_non_ran'] = 220.0
     return physics_df
@@ -136,7 +135,7 @@ def generate_synthetic_base(df_real):
     frequency, assigns traffic from per-configuration pools, computes physics-
     model expected energy, and applies lognormal multiplicative noise.
 
-    Vendor names are anonymised: HUA -> Vendor B, NOK -> Vendor A.
+    Expects ran_vendor_type values 'Vendor A' and 'Vendor B'.
     """
     physics_df = _fit_physics_model(df_real)
 
@@ -176,9 +175,6 @@ def generate_synthetic_base(df_real):
     _log_eps   = np.random.normal(0, _sigma_log)
     df_base['noise_std']          = _sigma_log * df_base['kwh_expected'].values
     df_base['kwh_expected_noise'] = df_base['kwh_expected'].values * np.exp(_log_eps)
-
-    df_base['ran_vendor_type'] = df_base['ran_vendor_type'].map(
-        lambda v: _VENDOR_DISPLAY.get(v, v))
 
     return df_base
 
@@ -244,9 +240,7 @@ def plot_eda(df_mock, out_dir):
 
     # S1 – Structural configuration characteristics
     fig, axes = plt.subplots(2, 2, figsize=(12, 7))
-    _vendor_display = {'HUA': 'Vendor B', 'NOK': 'Vendor A'}
     _vc = df_mock['ran_vendor_type'].value_counts()
-    _vc.index = _vc.index.map(lambda v: _vendor_display.get(v, v))
     axes[0, 0].bar(_vc.index, _vc.values, color=['#1f77b4', '#ff7f0e'][:len(_vc)],
                    edgecolor='white')
     axes[0, 0].set_ylabel("Count")
@@ -282,7 +276,7 @@ def plot_eda(df_mock, out_dir):
     _grp = (df_mock.groupby(['has_shared_ran', 'ran_vendor_type'])['kwh_expected']
             .agg(['median', 'std', 'count'])
             .rename(columns={'median': 'median_kwh', 'std': 'std_kwh', 'count': 'n'}))
-    _glabels = [f"{'Shared' if s else 'Solo'}\n{_vendor_display.get(v, v)}"
+    _glabels = [f"{'Shared' if s else 'Solo'}\n{v}"
                 for (s, v) in _grp.index]
     _bars = axes[1].bar(_glabels, _grp['median_kwh'].values, yerr=_grp['std_kwh'].values,
                         capsize=6, color=['#1f77b4', '#ff7f0e', '#aec7e8', '#ffbb78'],
