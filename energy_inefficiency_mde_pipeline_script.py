@@ -55,7 +55,7 @@ K_STRUCT_NEIGHBORS = 50     # wider peer set for displacement scoring and LOF
 TRAFFIC_WEIGHT     = 0.05   # down-weight traffic in graph construction
 N_SAMPLES          = 5000
 INEFF_PCT          = 0.10   # contamination rate for single-run evaluation
-BETA               = 35     # repulsion strength
+BETA               = 20     # repulsion strength
 N_DISSIMILAR_MULT  = 4      # dissimilar edges = N_DISSIMILAR_MULT x similar edges
 NEG_WEIGHT         = -2.0
 EMBEDDING_DIM      = 4
